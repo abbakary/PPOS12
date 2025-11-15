@@ -295,6 +295,31 @@ class OrderComponent(models.Model):
         return f"{self.order.order_number} - {self.get_type_display()}"
 
 
+class OrderInvoiceLink(models.Model):
+    """
+    Tracks multiple invoices linked to an order with reasons.
+    Allows attaching additional invoices to the same order at different times.
+    """
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='invoice_links')
+    invoice = models.ForeignKey('Invoice', on_delete=models.CASCADE, related_name='order_links')
+    reason = models.TextField(blank=True, null=True, help_text="Reason for adding this invoice (e.g., Additional parts, Follow-up service, etc.)")
+    linked_at = models.DateTimeField(default=timezone.now)
+    linked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='invoice_links_created')
+    is_primary = models.BooleanField(default=False, help_text="Primary invoice for this order")
+
+    class Meta:
+        ordering = ['-linked_at']
+        unique_together = [['order', 'invoice']]  # Prevent duplicate links
+        indexes = [
+            models.Index(fields=['order'], name='idx_order_invoice_link_order'),
+            models.Index(fields=['invoice'], name='idx_order_invoice_link_invoice'),
+            models.Index(fields=['linked_at'], name='idx_order_invoice_link_date'),
+        ]
+
+    def __str__(self):
+        return f"{self.order.order_number} - Invoice {self.invoice.invoice_number}"
+
+
 class OrderAttachment(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='attachments')
     file = models.FileField(upload_to='order_attachments/')

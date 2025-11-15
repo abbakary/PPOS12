@@ -174,7 +174,7 @@
               <small class="text-muted d-block">Type</small>
               <div>
                 <span class="badge bg-secondary">{{ order.customer.get_customer_type_display|default:"Personal" }}</span>
-                {% if order.customer.personal_subtype %}<small class="text-muted ms-2">�� {{ order.customer.get_personal_subtype_display }}</small>{% endif %}
+                {% if order.customer.personal_subtype %}<small class="text-muted ms-2">���� {{ order.customer.get_personal_subtype_display }}</small>{% endif %}
               </div>
             </div>
             <div class="col-md-6">
@@ -316,65 +316,84 @@
       <!-- Time Tracking -->
       <div class="card shadow-sm mb-4 time-tracking-card">
         <div class="card-header bg-light">
-          <h6 class="mb-0"><i class="fa fa-hourglass-half me-2"></i>Time Tracking</h6>
+          <h6 class="mb-0"><i class="fa fa-clock me-2"></i>Time Summary</h6>
         </div>
         <div class="card-body">
           <div class="time-tracking-overview">
-            <div class="time-tracking-stat">
-              <span class="time-tracking-label">Estimated</span>
-              <span class="time-tracking-value" id="timeEstimateValue">
-                {% if order.estimated_duration %}
-                  {{ order.estimated_duration }} mins
-                {% else %}
-                  No estimate
-                {% endif %}
-              </span>
-            </div>
-            <div class="time-tracking-stat">
-              <span class="time-tracking-label">Elapsed</span>
-              <span class="time-tracking-value" id="timeElapsedValue">--</span>
-            </div>
+            {% if order.completed_at %}
             <div class="time-tracking-stat">
               <span class="time-tracking-label">Actual Time</span>
               <span class="time-tracking-value" id="timeActualValue">
-                {% with actual_mins=order|actual_time_minutes %}
-                  {% if actual_mins %}
-                    {{ actual_mins|format_minutes }}
+                {% with total_seconds=order.completed_at|timesince:order.created_at %}
+                  {% if order.completed_at and order.created_at %}
+                    {% with mins=(order.completed_at.timestamp|add:"-"|add:order.created_at.timestamp)|abs|floordiv:"60" %}
+                      {% if mins < 60 %}
+                        {{ mins }} mins
+                      {% elif mins < 1440 %}
+                        {{ mins|divisibleby:"60"|yesno:"h, " }}{{ mins|modulo:"60" }} mins
+                      {% else %}
+                        {{ mins|divisibleby:"1440" }}d {{ mins|modulo:"1440"|divisibleby:"60" }}h
+                      {% endif %}
+                    {% endwith %}
                   {% else %}
-                    Pending
+                    Calculating...
                   {% endif %}
                 {% endwith %}
               </span>
             </div>
-          </div>
-          <div class="progress time-progress-bar">
-            <div class="progress-bar bg-primary" id="orderTimeProgressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
-          </div>
-          <div class="d-flex justify-content-between text-muted small mt-3 mb-3">
-            <span id="timeStartLabel">
-              {% if order.started_at %}
-                Started {{ order.started_at|localtime|date:"M j, Y g:i a" }}
-              {% else %}
-                Awaiting start
-              {% endif %}
-            </span>
-            <span id="timeRemainingValue">Remaining: --</span>
+            {% else %}
+            <div class="time-tracking-stat">
+              <span class="time-tracking-label">Elapsed Time</span>
+              <span class="time-tracking-value" id="timeElapsedValue">--</span>
+            </div>
+            {% endif %}
+
+            {% if order.estimated_duration and order.status != 'completed' %}
+            <div class="time-tracking-stat">
+              <span class="time-tracking-label">Estimated Duration</span>
+              <span class="time-tracking-value">{{ order.estimated_duration }} mins</span>
+            </div>
+            {% endif %}
           </div>
 
-          <!-- Completion Timestamp Section (shown when order is completed) -->
-          {% if order.completed_at %}
-          <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded">
-            <div class="d-flex align-items-center">
-              <i class="fa fa-check-circle text-success me-3 fa-lg"></i>
-              <div class="flex-grow-1">
-                <small class="text-muted d-block">Completed</small>
-                <strong class="text-dark">{{ order.completed_at|localtime|date:"M j, Y g:i a" }}</strong>
+          <!-- Timeline Section -->
+          <div class="mt-4">
+            <div class="timeline-compact">
+              <div class="timeline-compact-item">
+                <div class="timeline-compact-marker">
+                  <i class="fa fa-plus-circle text-primary"></i>
+                </div>
+                <div class="timeline-compact-content">
+                  <small class="text-muted">Created</small>
+                  <div class="fw-medium">{{ order.created_at|localtime|date:"M j, Y g:i a" }}</div>
+                </div>
               </div>
+
+              {% if order.started_at %}
+              <div class="timeline-compact-item">
+                <div class="timeline-compact-marker">
+                  <i class="fa fa-play-circle text-warning"></i>
+                </div>
+                <div class="timeline-compact-content">
+                  <small class="text-muted">Started</small>
+                  <div class="fw-medium">{{ order.started_at|localtime|date:"M j, Y g:i a" }}</div>
+                </div>
+              </div>
+              {% endif %}
+
+              {% if order.completed_at %}
+              <div class="timeline-compact-item">
+                <div class="timeline-compact-marker">
+                  <i class="fa fa-check-circle text-success"></i>
+                </div>
+                <div class="timeline-compact-content">
+                  <small class="text-muted">Completed</small>
+                  <div class="fw-medium">{{ order.completed_at|localtime|date:"M j, Y g:i a" }}</div>
+                </div>
+              </div>
+              {% endif %}
             </div>
           </div>
-          {% endif %}
-
-          <div class="time-progress-status small mt-3" id="timeStatusMessage"></div>
         </div>
       </div>
 
@@ -697,6 +716,130 @@
         </div>
       </div>
       {% endif %}
+
+      <!-- Multiple Order Types Section -->
+      {% if order.type != 'inquiry' %}
+      <div class="card shadow-sm mb-4 order-types-card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fa fa-layer-group me-2"></i>Order Components</h6>
+          {% if order.status != 'completed' and order.status != 'cancelled' %}
+          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addOrderTypeModal">
+            <i class="fa fa-plus me-1"></i>Add Component
+          </button>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if order.components.exists %}
+          <div class="components-list">
+            {% for component in order.components.all %}
+            <div class="component-item mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center mb-2">
+                    {% if component.type == 'service' %}
+                      <i class="fa fa-wrench text-primary me-2"></i>
+                      <span class="badge bg-primary">SERVICE</span>
+                    {% elif component.type == 'sales' %}
+                      <i class="fa fa-shopping-cart text-success me-2"></i>
+                      <span class="badge bg-success">SALES</span>
+                    {% endif %}
+                    <small class="text-muted ms-2">Added {{ component.added_at|localtime|date:"M j, Y g:i a" }}</small>
+                  </div>
+                  {% if component.reason %}
+                  <div class="mt-2">
+                    <small class="text-muted d-block">Reason:</small>
+                    <p class="mb-0 text-dark">{{ component.reason }}</p>
+                  </div>
+                  {% endif %}
+                  {% if component.invoice %}
+                  <div class="mt-2">
+                    <small class="text-muted d-block">Invoice:</small>
+                    <a href="{% url 'tracker:invoice_detail' pk=component.invoice.id %}" class="text-decoration-none">
+                      <strong>{{ component.invoice.invoice_number }}</strong>
+                    </a>
+                  </div>
+                  {% endif %}
+                </div>
+                <div class="component-actions">
+                  {% if component.signed_at %}
+                  <span class="badge bg-success"><i class="fa fa-check me-1"></i>Signed</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-muted text-center py-3">
+            <i class="fa fa-inbox fa-2x opacity-50 mb-2"></i>
+            <p class="mb-0">No additional components. This order has only the main {{ order.get_type_display|lower }} type.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Additional Invoices Section -->
+      <div class="card shadow-sm mb-4 invoices-card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="fa fa-file-invoice me-2"></i>Invoices & Documents</h6>
+          {% if order.status != 'completed' and order.status != 'cancelled' and order.type != 'inquiry' %}
+          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#linkInvoiceModal">
+            <i class="fa fa-link me-1"></i>Link Invoice
+          </button>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if order.invoice_links.exists %}
+          <div class="invoices-list">
+            {% for link in order.invoice_links.all %}
+            <div class="invoice-link-item mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center mb-2">
+                    <i class="fa fa-file-pdf text-danger me-2"></i>
+                    <a href="{% url 'tracker:invoice_detail' pk=link.invoice.id %}" class="text-decoration-none fw-bold">
+                      {{ link.invoice.invoice_number }}
+                    </a>
+                    {% if link.is_primary %}
+                    <span class="badge bg-primary ms-2">Primary</span>
+                    {% endif %}
+                    <small class="text-muted ms-2">{{ link.linked_at|localtime|date:"M j, Y g:i a" }}</small>
+                  </div>
+                  <div class="mt-2">
+                    <small class="text-muted d-block">Total: <strong>{{ link.invoice.total_amount|floatformat:2 }}</strong></small>
+                  </div>
+                  {% if link.reason %}
+                  <div class="mt-2">
+                    <small class="text-muted d-block">Reason for Linking:</small>
+                    <p class="mb-0 text-dark">{{ link.reason }}</p>
+                  </div>
+                  {% endif %}
+                </div>
+                <div class="invoice-actions">
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'tracker:invoice_detail' pk=link.invoice.id %}" class="btn btn-outline-primary" title="View Invoice">
+                      <i class="fa fa-eye"></i>
+                    </a>
+                    {% if order.status != 'completed' and order.status != 'cancelled' %}
+                    <button type="button" class="btn btn-outline-danger remove-invoice-link" data-link-id="{{ link.id }}" data-bs-toggle="modal" data-bs-target="#removeInvoiceLinkModal" title="Remove Link">
+                      <i class="fa fa-unlink"></i>
+                    </button>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-muted text-center py-3">
+            <i class="fa fa-inbox fa-2x opacity-50 mb-2"></i>
+            <p class="mb-0">No additional invoices linked to this order.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
 
       <!-- Enhanced Attachments & Signatures Section -->
       <div class="card shadow-sm mb-4 attachments-card">
@@ -1113,74 +1256,128 @@
   </div>
 </div>
 
-<!-- Capture Signature Modal -->
+<!-- Capture Signature Modal - Enhanced -->
 <div class="modal fade" id="completeModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered signature-modal-container">
-    <div class="modal-content border-0 signature-modal-content">
-      <div class="modal-header signature-modal-header bg-gradient-success text-white border-0 rounded-top">
+  <div class="modal-dialog modal-dialog-centered modal-lg signature-modal-container">
+    <div class="modal-content border-0 signature-modal-content shadow-lg">
+      <div class="modal-header signature-modal-header bg-gradient-success text-white border-0">
         <div class="d-flex align-items-center">
           <i class="fa fa-pen-fancy me-3 fa-lg"></i>
           <div>
-            <h5 class="modal-title fw-bold mb-0">Capture Signature</h5>
-            <small class="opacity-75">Complete the order by signing</small>
+            <h5 class="modal-title fw-bold mb-0">Complete Order</h5>
+            <small class="opacity-75">Capture signature and confirm order completion</small>
           </div>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body p-4 signature-modal-body">
+      <div class="modal-body p-0 signature-modal-body">
         <form method="post" enctype="multipart/form-data" action="{% url 'tracker:complete_order' pk=order.id %}" id="completeForm">
           {% csrf_token %}
           <input type="hidden" name="signature_data" id="signatureDataInput">
           <input type="hidden" name="overrun_reason" id="completeOverrunHidden" value="{{ order.overrun_reason|default:''|escape }}">
 
-          <!-- Signature Canvas -->
-          <div class="mb-4">
-            <label class="form-label fw-bold text-dark mb-2">
-              <i class="fa fa-signature me-2 text-success"></i>Customer Signature <span class="text-danger">*</span>
-            </label>
-            <div id="docSignContainer" class="signature-pad-wrapper position-relative overflow-hidden bg-white border border-2 rounded-lg d-flex align-items-center justify-content-center" style="height: 200px; border-color: #dee2e6; cursor: crosshair;">
-              <div id="docPreviewHost" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                <div class="text-center">
-                  <i class="fa fa-pen-fancy fa-3x mb-2 text-muted opacity-50"></i>
-                  <p class="mb-0 fw-medium">Click and draw signature</p>
-                  <small class="text-muted">Use mouse or touch screen</small>
+          <!-- Tab Navigation -->
+          <div class="border-bottom px-4 pt-4">
+            <ul class="nav nav-tabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="signatureTab" data-bs-toggle="tab" data-bs-target="#signatureSection" type="button" role="tab" aria-controls="signatureSection" aria-selected="true">
+                  <i class="fa fa-signature me-2"></i>Signature
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reasonTab" data-bs-toggle="tab" data-bs-target="#reasonSection" type="button" role="tab" aria-controls="reasonSection" aria-selected="false">
+                  <i class="fa fa-comments me-2"></i>Details
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="tab-content p-4">
+            <!-- Signature Tab -->
+            <div class="tab-pane fade show active" id="signatureSection" role="tabpanel">
+              <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <label class="form-label fw-bold text-dark mb-0">
+                    <i class="fa fa-pen me-2 text-success"></i>Customer Signature <span class="text-danger">*</span>
+                  </label>
+                  <small class="text-muted">Draw signature in the box below</small>
+                </div>
+                <div id="docSignContainer" class="signature-pad-wrapper position-relative overflow-hidden bg-white border border-2 rounded-lg d-flex align-items-center justify-content-center" style="height: 160px; border-color: #dee2e6; border-style: dashed; cursor: crosshair;">
+                  <div id="docPreviewHost" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                    <div class="text-center pointer-events-none">
+                      <i class="fa fa-pen-fancy fa-2x mb-2 text-muted opacity-50"></i>
+                      <p class="mb-0 fw-medium small">Click to sign</p>
+                    </div>
+                  </div>
+                  <canvas id="signaturePad" class="position-absolute top-0 start-0 w-100 h-100" style="cursor: crosshair; z-index: 2; display: none;"></canvas>
+                </div>
+                <div class="d-flex gap-2 mt-2 align-items-center">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="clearSignatureBtn" style="display: none;">
+                    <i class="fa fa-eraser me-1"></i>Clear
+                  </button>
+                  <div id="signaturePreviewSmall" class="ms-auto d-flex align-items-center gap-2" style="display: none;">
+                    <small class="text-muted">Preview:</small>
+                    <canvas id="signaturePreviewMini" width="100" height="50" style="border: 1px solid #dee2e6; border-radius: 4px; background: white; max-height: 50px;"></canvas>
+                  </div>
                 </div>
               </div>
-              <canvas id="signaturePad" class="position-absolute top-0 start-0 w-100 h-100" style="cursor: crosshair; z-index: 2; display: none;"></canvas>
             </div>
-            <div class="d-flex gap-2 mt-2 align-items-center">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="clearSignatureBtn" style="display: none;">
-                <i class="fa fa-redo me-1"></i>Clear Signature
-              </button>
-              <div id="signaturePreviewSmall" class="ms-auto" style="display: none;">
-                <small class="text-muted me-2">Preview:</small>
-                <canvas id="signaturePreviewMini" width="100" height="50" style="border: 2px solid #dee2e6; border-radius: 4px; background: white; max-height: 50px;"></canvas>
+
+            <!-- Details Tab -->
+            <div class="tab-pane fade" id="reasonSection" role="tabpanel">
+              <!-- Completion Date -->
+              <div class="mb-4">
+                <label class="form-label fw-bold text-dark mb-2">
+                  <i class="fa fa-calendar-check me-2 text-info"></i>Completion Details
+                </label>
+                <div class="p-3 bg-light border rounded">
+                  <small class="text-muted d-block">Completion Date & Time:</small>
+                  <div class="fw-medium text-dark">{{ order.completed_at|localtime|default:"Will be set on completion" }}</div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Reason Field -->
-          <div class="mb-4">
-            <label class="form-label fw-bold text-dark mb-2">
-              <i class="fa fa-comment-dots me-2 text-info"></i>Reason <small class="fw-normal text-muted">(if order took longer than expected)</small>
-            </label>
-            <textarea name="signature_reason" id="signatureReasonField" class="form-control" rows="3" placeholder="e.g., Additional repairs needed, customer delayed arrival, supply shortage, technical difficulties..."></textarea>
-            <small class="text-muted d-block mt-1">Explain any delays or special circumstances about this order.</small>
-          </div>
+              <!-- Order Duration -->
+              {% if order.estimated_duration %}
+              <div class="mb-4">
+                <label class="form-label fw-bold text-dark mb-2">
+                  <i class="fa fa-hourglass me-2 text-warning"></i>Order Duration
+                </label>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <div class="p-3 bg-light border rounded">
+                      <small class="text-muted d-block">Estimated</small>
+                      <div class="fw-medium text-dark">{{ order.estimated_duration }} minutes</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-3 bg-light border rounded">
+                      <small class="text-muted d-block">Actual</small>
+                      <div class="fw-medium text-dark" id="actualDurationDisplay">Calculating...</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
 
-          <!-- Info Alert -->
-          <div class="alert alert-info border-0 bg-info bg-opacity-10 rounded-lg">
-            <div class="d-flex">
-              <i class="fa fa-info-circle me-2 text-info mt-1"></i>
-              <span class="text-dark">Draw the customer's signature. This will complete the order. All information will be saved together.</span>
+              <!-- Overrun Reason -->
+              <div class="mb-3">
+                <label class="form-label fw-bold text-dark mb-2">
+                  <i class="fa fa-comment-alt me-2 text-info"></i>Reason for Delays <small class="fw-normal text-muted">(optional)</small>
+                </label>
+                <textarea name="signature_reason" id="signatureReasonField" class="form-control" rows="3" placeholder="e.g., Additional repairs discovered, customer delayed arrival, supply shortage, technical issues, unforeseen circumstances..."></textarea>
+                <small class="text-muted d-block mt-2">
+                  <i class="fa fa-info-circle me-1"></i>Explain any reasons why this order took longer than expected or any special circumstances.
+                </small>
+              </div>
             </div>
           </div>
         </form>
       </div>
-      <div class="modal-footer bg-white border-top signature-modal-footer">
+      <div class="modal-footer bg-light border-top signature-modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success btn-lg fw-bold" id="footerSignAndComplete">
-          <i class="fa fa-check-circle me-2"></i>Complete & Save
+        <button type="button" class="btn btn-success fw-bold" id="footerSignAndComplete">
+          <i class="fa fa-check-circle me-2"></i>Complete Order
         </button>
       </div>
     </div>
@@ -1413,6 +1610,140 @@
   </div>
 </div>
 {% endif %}
+
+<!-- Add Order Type/Component Modal -->
+<div class="modal fade" id="addOrderTypeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-light border-bottom">
+        <h5 class="modal-title"><i class="fa fa-plus-circle me-2"></i>Add Order Component</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'tracker:add_order_component' pk=order.id %}" id="addComponentForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-bold">Component Type <span class="text-danger">*</span></label>
+            <select name="component_type" class="form-select" required>
+              <option value="">-- Select Type --</option>
+              {% if order.type != 'service' and not order.components|has_type:'service' %}
+              <option value="service">Service</option>
+              {% endif %}
+              {% if order.type != 'sales' and not order.components|has_type:'sales' %}
+              <option value="sales">Sales</option>
+              {% endif %}
+            </select>
+            <small class="text-muted">Add a different service or sales component to this order</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Reason for Adding <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="e.g., Customer requested additional service, found damage during inspection..." required></textarea>
+            <small class="text-muted">Explain why you are adding this component</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Link Invoice <span class="text-muted">(optional)</span></label>
+            <select name="invoice_id" class="form-select">
+              <option value="">-- Select Invoice (optional) --</option>
+              {% for invoice in order.invoices.all %}
+              <option value="{{ invoice.id }}">{{ invoice.invoice_number }} - {{ invoice.total_amount|floatformat:2 }}</option>
+              {% endfor %}
+            </select>
+            <small class="text-muted">Attach an invoice to this component</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa fa-check me-1"></i>Add Component
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Link Invoice Modal -->
+<div class="modal fade" id="linkInvoiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-light border-bottom">
+        <h5 class="modal-title"><i class="fa fa-link me-2"></i>Link Invoice to Order</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'tracker:link_invoice_to_order' pk=order.id %}" id="linkInvoiceForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-bold">Select Invoice <span class="text-danger">*</span></label>
+            <select name="invoice_id" class="form-select" required>
+              <option value="">-- Choose an Invoice --</option>
+              {% for invoice in available_invoices %}
+              <option value="{{ invoice.id }}">{{ invoice.invoice_number }} ({{ invoice.customer.full_name }})</option>
+              {% endfor %}
+            </select>
+            <small class="text-muted">Choose an invoice to link to this order. You can only link invoices from this customer.</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Reason for Linking <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" placeholder="e.g., Additional parts purchased, Follow-up service charges, Repair materials..." required></textarea>
+            <small class="text-muted">Explain why you are linking this invoice to the order</small>
+          </div>
+
+          <div class="mb-0">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_primary" id="isPrimaryInvoice">
+              <label class="form-check-label" for="isPrimaryInvoice">
+                Set as primary invoice for this order
+              </label>
+              <small class="text-muted d-block mt-1">Primary invoice is the main invoice for this order</small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa fa-check me-1"></i>Link Invoice
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Remove Invoice Link Modal -->
+<div class="modal fade" id="removeInvoiceLinkModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger bg-opacity-10 border-bottom border-danger">
+        <h5 class="modal-title text-danger"><i class="fa fa-exclamation-circle me-2"></i>Remove Invoice Link?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Are you sure you want to remove this invoice link from the order?</p>
+        <div class="alert alert-warning">
+          <small>
+            <i class="fa fa-info-circle me-2"></i>
+            This will only remove the link. The invoice itself will not be deleted and can be linked again later.
+          </small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'tracker:remove_invoice_link' pk=order.id %}" style="display: inline;">
+          {% csrf_token %}
+          <input type="hidden" name="link_id" id="removeInvoiceLinkId">
+          <button type="submit" class="btn btn-danger">
+            <i class="fa fa-unlink me-1"></i>Remove Link
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Questions Full Text Modal -->
 {% if order.questions %}
 <div class="modal fade" id="questionsModal" tabindex="-1">
@@ -2134,6 +2465,113 @@
   .signature-modal-footer .btn-success:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  }
+
+  /* Enhanced Timeline for Compact View */
+  .timeline-compact {
+    position: relative;
+    padding-left: 0;
+  }
+
+  .timeline-compact-item {
+    display: flex;
+    gap: 1rem;
+    padding-bottom: 1.5rem;
+    position: relative;
+  }
+
+  .timeline-compact-item:last-child {
+    padding-bottom: 0;
+  }
+
+  .timeline-compact-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 1.25rem;
+    top: 2.5rem;
+    width: 2px;
+    height: calc(100% + 0.5rem);
+    background: #dee2e6;
+  }
+
+  .timeline-compact-marker {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    border-radius: 50%;
+    font-size: 1rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .timeline-compact-content {
+    flex: 1;
+    padding-top: 0.25rem;
+  }
+
+  /* Order Types and Invoices Cards */
+  .order-types-card, .invoices-card {
+    transition: all 0.3s ease;
+  }
+
+  .component-item, .invoice-link-item {
+    transition: all 0.3s ease;
+  }
+
+  .component-item:hover, .invoice-link-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .component-actions, .invoice-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  /* Tab styling for signature modal */
+  .signature-modal-container .nav-tabs {
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  .signature-modal-container .nav-link {
+    border: none;
+    color: #6c757d;
+    padding: 0.75rem 1rem;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+  }
+
+  .signature-modal-container .nav-link:hover {
+    color: #495057;
+    border-bottom-color: #dee2e6;
+  }
+
+  .signature-modal-container .nav-link.active {
+    color: #198754;
+    border-bottom-color: #198754;
+    background: transparent;
+  }
+
+  /* Signature Pad Container */
+  .signature-pad-wrapper {
+    transition: all 0.3s ease;
+  }
+
+  .signature-pad-wrapper:focus-within {
+    border-color: #198754 !important;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+  }
+
+  /* Modal Header Gradient */
+  .bg-gradient-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+  }
+
+  .bg-gradient-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%) !important;
   }
 </style>
 {% endblock %}

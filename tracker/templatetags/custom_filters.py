@@ -330,3 +330,17 @@ def actual_time_minutes(order) -> int:
         return total_minutes
     except Exception:
         return 0
+
+
+@register.filter(name='has_type')
+def has_type(components_queryset, component_type: str) -> bool:
+    """
+    Check if a queryset of components contains a specific component type.
+    Usage: {% if order.components|has_type:'service' %}
+    """
+    try:
+        if not components_queryset:
+            return False
+        return components_queryset.filter(type=component_type.lower()).exists()
+    except Exception:
+        return False

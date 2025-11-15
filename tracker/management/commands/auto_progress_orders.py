@@ -59,10 +59,11 @@ class Command(BaseCommand):
                 updated += len(batch_ids)
                 continue
             with transaction.atomic():
-                # Set status and started_at if not set
+                # Set status to in_progress and started_at to created_at (the actual order creation time)
+                from django.db.models import F
                 rows = (
                     Order.objects.filter(id__in=batch_ids, status="created")
-                    .update(status="in_progress", started_at=now)
+                    .update(status="in_progress", started_at=F('created_at'))
                 )
                 updated += rows
 

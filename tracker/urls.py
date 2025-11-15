@@ -54,6 +54,9 @@ urlpatterns = [
     path("api/orders/<int:pk>/status/", views.api_order_status, name="api_order_status"),
     path("api/orders/statuses/", views.api_orders_statuses, name="api_orders_statuses"),
     path("orders/<int:pk>/cancel/", views.cancel_order, name="cancel_order"),
+    path("orders/<int:pk>/component/add/", views.add_order_component, name="add_order_component"),
+    path("orders/<int:pk>/invoice/link/", views.link_invoice_to_order, name="link_invoice_to_order"),
+    path("orders/<int:pk>/invoice-link/remove/", views.remove_invoice_link, name="remove_invoice_link"),
 
     path("analytics/", views.analytics, name="analytics"),
     path("analytics/customer/", views.analytics_customer, name="analytics_customer"),
