@@ -183,16 +183,24 @@
             </h6>
             <small class="text-muted">
               <i class="fa fa-clock me-1"></i>
-              {{ order.started_at|localtime|date_medium }}
+              {% if order.status == 'created' %}
+                Created: {{ order.created_at|localtime|date_medium }}
+              {% elif order.status == 'in_progress' %}
+                Started: {{ order.started_at|localtime|date_medium }}
+              {% elif order.status == 'completed' %}
+                Completed: {{ order.completed_at|localtime|date_medium }}
+              {% else %}
+                {{ order.created_at|localtime|date_medium }}
+              {% endif %}
             </small>
           </div>
           <div>
             {% if order.status == 'created' %}
-              <span class="badge bg-secondary rounded-pill"><i class="fa fa-play me-1"></i>Created</span>
+              <span class="badge bg-secondary rounded-pill"><i class="fa fa-hourglass-start me-1"></i>Created</span>
             {% elif order.status == 'in_progress' %}
-              <span class="badge bg-warning text-dark rounded-pill"><i class="fa fa-clock me-1"></i>In Progress</span>
+              <span class="badge bg-warning text-dark rounded-pill"><i class="fa fa-spinner me-1"></i>In Progress</span>
             {% elif order.status == 'completed' %}
-              <span class="badge bg-success rounded-pill"><i class="fa fa-check me-1"></i>Completed</span>
+              <span class="badge bg-success rounded-pill"><i class="fa fa-check-circle me-1"></i>Completed</span>
             {% else %}
               <span class="badge bg-light text-dark rounded-pill">{{ order.status }}</span>
             {% endif %}
