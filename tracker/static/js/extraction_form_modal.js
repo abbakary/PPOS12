@@ -94,13 +94,17 @@ class ExtractionFormModal {
     }
 
     if (this.currentStep < this.totalSteps) {
-      this.showStep(this.currentStep + 1);
+      const nextStep = this.isCustomerPreSelected && this.currentStep === 1 ? 2 : this.currentStep + 1;
+      this.showStep(nextStep);
+    } else if (this.currentStep === 2 && this.isCustomerPreSelected) {
+      this.showStep(3);
     }
   }
 
   prevStep() {
     if (this.currentStep > 1) {
-      this.showStep(this.currentStep - 1);
+      const prevStep = this.isCustomerPreSelected && this.currentStep === 2 ? 1 : this.currentStep - 1;
+      this.showStep(prevStep);
     }
   }
 
