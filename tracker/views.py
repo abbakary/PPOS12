@@ -3104,12 +3104,17 @@ def order_detail(request: HttpRequest, pk: int):
         time_metrics['remaining_minutes'] = max(0, int(remaining_seconds // 60))
         time_metrics['overdue'] = remaining_seconds < 0
 
+    # Get available invoices for linking (invoices from same customer, not yet linked)
+    linked_invoice_ids = order.invoice_links.values_list('invoice_id', flat=True)
+    available_invoices = order.customer.invoices.exclude(id__in=linked_invoice_ids).order_by('-invoice_date')
+
     # Prepare context
     context = {
         "order": order,
         "invoice": invoice,
         "selected_services": selected_services,
         "time_metrics": time_metrics,
+        "available_invoices": available_invoices,
     }
     return render(request, "tracker/order_detail.html", context)
 
