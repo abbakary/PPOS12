@@ -300,24 +300,25 @@ def started_orders_dashboard(request):
         orders_by_plate[plate].append(order)
 
     # Calculate statistics
-    # Include all started orders for accurate counts (status='in_progress' means started)
+    # Total started orders: both 'created' (just initiated) and 'in_progress' (actively being worked on)
+    from django.db.models import Q, Count
     total_started = Order.objects.filter(
         branch=user_branch,
-        status='in_progress'
+        status__in=['created', 'in_progress']
     ).count()
 
+    # Orders started today: those created today (before or after auto-progression)
+    today = timezone.now().date()
     today_started = Order.objects.filter(
         branch=user_branch,
-        status='in_progress',
-        started_at__date=timezone.now().date()
+        status__in=['created', 'in_progress'],
+        created_at__date=today
     ).count()
 
-    # Calculate repeated vehicles today (vehicles with 2+ orders started today)
-    from django.db.models import Count
+    # Calculate repeated vehicles today (vehicles with 2+ orders created today)
     today_orders = Order.objects.filter(
         branch=user_branch,
-        status='in_progress',
-        started_at__date=timezone.now().date(),
+        created_at__date=today,
         vehicle__isnull=False
     ).values('vehicle__plate_number').annotate(order_count=Count('id')).filter(order_count__gte=2)
     repeated_vehicles_today = today_orders.count()
