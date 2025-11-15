@@ -11,6 +11,7 @@ class ExtractionFormModal {
     this.totalSteps = 3;
     this.formData = {};
     this.modal = null;
+    this.isCustomerPreSelected = false;
     this.init();
   }
 
@@ -20,6 +21,10 @@ class ExtractionFormModal {
       console.error('Extraction form modal not found');
       return;
     }
+
+    // Check if customer is pre-selected
+    const preSelectedCustomerId = modalElement.querySelector('input[name="pre_selected_customer_id"]')?.value;
+    this.isCustomerPreSelected = !!preSelectedCustomerId;
 
     this.modal = new bootstrap.Modal(modalElement, {
       backdrop: 'static',
@@ -89,13 +94,17 @@ class ExtractionFormModal {
     }
 
     if (this.currentStep < this.totalSteps) {
-      this.showStep(this.currentStep + 1);
+      const nextStep = this.isCustomerPreSelected && this.currentStep === 1 ? 2 : this.currentStep + 1;
+      this.showStep(nextStep);
+    } else if (this.currentStep === 2 && this.isCustomerPreSelected) {
+      this.showStep(3);
     }
   }
 
   prevStep() {
     if (this.currentStep > 1) {
-      this.showStep(this.currentStep - 1);
+      const prevStep = this.isCustomerPreSelected && this.currentStep === 2 ? 1 : this.currentStep - 1;
+      this.showStep(prevStep);
     }
   }
 
@@ -116,14 +125,22 @@ class ExtractionFormModal {
     const nextBtn = document.getElementById('extractionNextBtn');
     const submitBtn = document.getElementById('extractionSubmitBtn');
 
-    prevBtn.style.display = stepNumber === 1 ? 'none' : 'block';
-    nextBtn.style.display = stepNumber === this.totalSteps ? 'none' : 'block';
-    submitBtn.style.display = stepNumber === this.totalSteps ? 'block' : 'none';
+    // If customer is pre-selected, skip step 1 (customer type selection) and go to step 2
+    let actualStep = stepNumber;
+    if (this.isCustomerPreSelected && stepNumber === 1) {
+      actualStep = 2;
+      document.getElementById('extractionStep2')?.classList.remove('d-none');
+      document.getElementById('extractionStep1')?.classList.add('d-none');
+    }
 
-    this.currentStep = stepNumber;
+    prevBtn.style.display = actualStep === 1 || actualStep === 2 ? 'none' : 'block';
+    nextBtn.style.display = actualStep >= (this.isCustomerPreSelected ? 2 : this.totalSteps) ? 'none' : 'block';
+    submitBtn.style.display = actualStep === this.totalSteps ? 'block' : 'none';
+
+    this.currentStep = actualStep;
 
     // Load services/addons if moving to step 2
-    if (stepNumber === 2) {
+    if (actualStep === 2) {
       this.loadServicesAndAddons();
     }
   }

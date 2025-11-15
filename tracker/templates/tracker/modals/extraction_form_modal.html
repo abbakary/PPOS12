@@ -18,10 +18,11 @@
         {% csrf_token %}
         <input type="hidden" name="order_id" value="{{ order.id }}">
         <input type="hidden" name="action" value="update_from_extraction">
+        {% if order.customer %}<input type="hidden" name="pre_selected_customer_id" value="{{ order.customer.id }}">{% endif %}
 
         <div class="modal-body extraction-form-body">
-          <!-- Step 1: Customer Type Selection -->
-          <div class="extraction-step" id="extractionStep1" data-step="1">
+          <!-- Step 1: Customer Type Selection (Only shown if customer is not pre-selected) -->
+          <div class="extraction-step" id="extractionStep1" data-step="1" {% if order.customer %}style="display:none;"{% endif %}>
             <h6 class="fw-bold mb-3">
               <span class="step-badge-sm">1</span>
               <i class="fa fa-user me-2 text-primary"></i>Customer Type
@@ -132,25 +133,36 @@
             </h6>
 
             <div class="extracted-data-form-extraction">
-              <!-- Customer Info -->
-              <div class="row g-3 mb-3">
-                <div class="col-12">
-                  <label class="form-label fw-medium">Customer Name <span class="text-danger">*</span></label>
-                  <input type="text" name="extracted_customer_name" class="form-control" placeholder="Full name" value="{{ order.customer.full_name }}" required>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-medium">Phone <span class="text-danger">*</span></label>
-                  <input type="text" name="extracted_phone" class="form-control" placeholder="Phone number" value="{{ order.customer.phone }}" required>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-medium">Email</label>
-                  <input type="email" name="extracted_email" class="form-control" placeholder="Email (optional)" value="{{ order.customer.email|default:'' }}">
-                </div>
-                <div class="col-12">
-                  <label class="form-label fw-medium">Address</label>
-                  <textarea name="extracted_address" class="form-control" rows="2" placeholder="Address (optional)">{{ order.customer.address|default:'' }}</textarea>
+              <!-- Customer Info (Hidden when customer is pre-selected) -->
+              <div class="customer-info-section" {% if order.customer %}style="display:none;"{% endif %}>
+                <div class="row g-3 mb-3">
+                  <div class="col-12">
+                    <label class="form-label fw-medium">Customer Name <span class="text-danger">*</span></label>
+                    <input type="text" name="extracted_customer_name" class="form-control" placeholder="Full name" value="{{ order.customer.full_name }}" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-medium">Phone <span class="text-danger">*</span></label>
+                    <input type="text" name="extracted_phone" class="form-control" placeholder="Phone number" value="{{ order.customer.phone }}" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-medium">Email</label>
+                    <input type="email" name="extracted_email" class="form-control" placeholder="Email (optional)" value="{{ order.customer.email|default:'' }}">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label fw-medium">Address</label>
+                    <textarea name="extracted_address" class="form-control" rows="2" placeholder="Address (optional)">{{ order.customer.address|default:'' }}</textarea>
+                  </div>
                 </div>
               </div>
+
+              <!-- Customer Pre-selected Alert -->
+              {% if order.customer %}
+              <div class="alert alert-success mb-3">
+                <i class="fa fa-check-circle me-2"></i>
+                <strong>Customer Pre-selected:</strong> {{ order.customer.full_name }}
+                <br><small class="text-muted">Customer information will be saved from the existing record.</small>
+              </div>
+              {% endif %}
 
               <!-- Order Details -->
               <hr class="my-3">

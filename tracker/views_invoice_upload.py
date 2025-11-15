@@ -137,18 +137,19 @@ def api_create_invoice_from_upload(request):
     """
     Step 2: Create/update customer, order, and invoice from extracted invoice data.
     This is called after user confirms extracted data.
-    
+
     POST fields:
       - selected_order_id (optional): Existing started order to update
       - plate (optional): Vehicle plate number
-      
+      - pre_selected_customer_id (optional): Pre-selected customer ID (skip customer creation)
+
       Customer fields:
       - customer_name: Customer full name
       - customer_phone: Customer phone number
       - customer_email (optional): Customer email
       - customer_address (optional): Customer address
       - customer_type: personal|company|ngo|government
-      
+
       Invoice fields:
       - invoice_number: Invoice number from invoice
       - invoice_date: Invoice date
@@ -156,12 +157,12 @@ def api_create_invoice_from_upload(request):
       - tax_amount: Tax/VAT amount
       - total_amount: Total amount
       - notes (optional): Additional notes
-      
+
       Line items (arrays):
       - item_description[]: Item description
       - item_qty[]: Item quantity
       - item_price[]: Item unit price
-      
+
     Returns:
       - success: true/false
       - invoice_id: Created invoice ID
@@ -170,11 +171,12 @@ def api_create_invoice_from_upload(request):
       - redirect_url: URL to view created invoice
     """
     user_branch = get_user_branch(request.user)
-    
+
     try:
         with transaction.atomic():
-            # Allow passing customer_id to reuse existing customer (avoid duplicates)
-            customer_id = request.POST.get('customer_id')
+            # Priority 1: Use pre-selected customer (from started order detail page)
+            # This prevents creating duplicate customers when uploading invoice for known customer
+            customer_id = request.POST.get('pre_selected_customer_id') or request.POST.get('customer_id')
             customer_obj = None
 
             customer_name = request.POST.get('customer_name', '').strip()
@@ -187,7 +189,7 @@ def api_create_invoice_from_upload(request):
             if customer_id:
                 try:
                     customer_obj = Customer.objects.get(id=int(customer_id), branch=user_branch)
-                    logger.info(f"Using existing customer for invoice upload: {customer_obj.id}")
+                    logger.info(f"Using pre-selected customer for invoice upload: {customer_obj.id}")
                 except (Customer.DoesNotExist, ValueError):
                     return JsonResponse({'success': False, 'message': 'Selected customer not found'})
             else:
