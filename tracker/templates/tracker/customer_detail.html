@@ -887,25 +887,39 @@
     const startBtn=document.getElementById('quickStartBtn');
     const stopBtn=document.getElementById('quickStopBtn');
     const startedOrderEl=document.getElementById('startedOrderId');
+    const orderTypeModal = document.getElementById('quickOrderTypeModal');
+    const confirmStartBtn = document.getElementById('confirmQuickStart');
+    const orderTypeRadios = document.querySelectorAll('input[name="quickOrderType"]');
+
     function currentStarted(){return startedOrderEl && startedOrderEl.value ? parseInt(startedOrderEl.value,10):null;}
 
     if(startBtn){
-      startBtn.addEventListener('click',function(){
+      startBtn.addEventListener('click',function(e){
+        const plate=(plateEl && plateEl.value?plateEl.value:'').trim().toUpperCase();
+        if(!plate){ alert('Enter plate to start order'); e.preventDefault(); return false; }
+      });
+    }
+
+    if(confirmStartBtn){
+      confirmStartBtn.addEventListener('click',function(){
         const plate=(plateEl && plateEl.value?plateEl.value:'').trim().toUpperCase();
         if(!plate){ alert('Enter plate to start order'); return; }
+        const orderType = document.querySelector('input[name="quickOrderType"]:checked')?.value || 'service';
         const payload={
           plate_number: plate,
-          order_type: 'service',
+          order_type: orderType,
           use_existing_customer: true,
           existing_customer_id: {{ customer.id }}
         };
+        const modal = bootstrap.Modal.getInstance(orderTypeModal);
+        if(modal) modal.hide();
+
         fetch('/tracker/api/orders/start/',{
           method:'POST',
           headers:{'Content-Type':'application/json','X-CSRFToken':getCSRF()},
           body:JSON.stringify(payload)
         }).then(r=>r.json()).then(data=>{
           if(data && data.success){
-            // Reload so the new started order appears in all sections
             window.location.reload();
           } else {
             alert(data && data.error ? data.error : 'Failed to start order');
