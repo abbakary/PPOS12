@@ -3742,6 +3742,144 @@ def delete_order_attachment(request: HttpRequest, att_id: int):
 
 
 @login_required
+def add_order_component(request: HttpRequest, pk: int):
+    """Add an additional order component (service or sales) to an order."""
+    from .models import OrderComponent, Invoice
+
+    orders_qs = scope_queryset(Order.objects.all(), request.user, request)
+    order = get_object_or_404(orders_qs, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('tracker:order_detail', pk=order.id)
+
+    if order.status == 'completed' or order.status == 'cancelled':
+        messages.error(request, 'Cannot add components to completed or cancelled orders.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    component_type = request.POST.get('component_type', '').strip().lower()
+    reason = request.POST.get('reason', '').strip()
+    invoice_id = request.POST.get('invoice_id')
+
+    if not component_type or component_type not in ['service', 'sales']:
+        messages.error(request, 'Invalid component type. Please select Service or Sales.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    if not reason:
+        messages.error(request, 'Please provide a reason for adding this component.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    if OrderComponent.objects.filter(order=order, type=component_type).exists():
+        messages.error(request, f'This order already has a {component_type.title()} component.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    try:
+        invoice = None
+        if invoice_id:
+            invoice = Invoice.objects.get(pk=invoice_id, order=order)
+
+        component = OrderComponent.objects.create(
+            order=order,
+            type=component_type,
+            reason=reason,
+            invoice=invoice,
+            added_by=request.user
+        )
+        messages.success(request, f'Added {component_type.title()} component to order.')
+        return redirect('tracker:order_detail', pk=order.id)
+    except Invoice.DoesNotExist:
+        messages.error(request, 'Selected invoice not found for this order.')
+        return redirect('tracker:order_detail', pk=order.id)
+    except Exception as e:
+        messages.error(request, f'Error adding component: {str(e)}')
+        return redirect('tracker:order_detail', pk=order.id)
+
+
+@login_required
+def link_invoice_to_order(request: HttpRequest, pk: int):
+    """Link an additional invoice to an order with a reason."""
+    from .models import OrderInvoiceLink, Invoice
+
+    orders_qs = scope_queryset(Order.objects.all(), request.user, request)
+    order = get_object_or_404(orders_qs, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('tracker:order_detail', pk=order.id)
+
+    if order.status == 'completed' or order.status == 'cancelled':
+        messages.error(request, 'Cannot link invoices to completed or cancelled orders.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    invoice_id = request.POST.get('invoice_id')
+    reason = request.POST.get('reason', '').strip()
+    is_primary = request.POST.get('is_primary') == 'on'
+
+    if not invoice_id:
+        messages.error(request, 'Please select an invoice to link.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    if not reason:
+        messages.error(request, 'Please provide a reason for linking this invoice.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    try:
+        invoice = Invoice.objects.get(pk=invoice_id, customer=order.customer)
+
+        if OrderInvoiceLink.objects.filter(order=order, invoice=invoice).exists():
+            messages.error(request, 'This invoice is already linked to this order.')
+            return redirect('tracker:order_detail', pk=order.id)
+
+        if is_primary:
+            OrderInvoiceLink.objects.filter(order=order, is_primary=True).update(is_primary=False)
+
+        OrderInvoiceLink.objects.create(
+            order=order,
+            invoice=invoice,
+            reason=reason,
+            is_primary=is_primary,
+            linked_by=request.user
+        )
+        messages.success(request, 'Invoice linked to order successfully.')
+        return redirect('tracker:order_detail', pk=order.id)
+    except Invoice.DoesNotExist:
+        messages.error(request, 'Selected invoice not found for this customer.')
+        return redirect('tracker:order_detail', pk=order.id)
+    except Exception as e:
+        messages.error(request, f'Error linking invoice: {str(e)}')
+        return redirect('tracker:order_detail', pk=order.id)
+
+
+@login_required
+def remove_invoice_link(request: HttpRequest, pk: int):
+    """Remove an invoice link from an order."""
+    from .models import OrderInvoiceLink
+
+    orders_qs = scope_queryset(Order.objects.all(), request.user, request)
+    order = get_object_or_404(orders_qs, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('tracker:order_detail', pk=order.id)
+
+    link_id = request.POST.get('link_id')
+
+    if not link_id:
+        messages.error(request, 'Invalid request.')
+        return redirect('tracker:order_detail', pk=order.id)
+
+    try:
+        link = OrderInvoiceLink.objects.get(pk=link_id, order=order)
+        invoice_number = link.invoice.invoice_number
+        link.delete()
+        messages.success(request, f'Removed link to invoice {invoice_number}.')
+        return redirect('tracker:order_detail', pk=order.id)
+    except OrderInvoiceLink.DoesNotExist:
+        messages.error(request, 'Invoice link not found.')
+        return redirect('tracker:order_detail', pk=order.id)
+    except Exception as e:
+        messages.error(request, f'Error removing link: {str(e)}')
+        return redirect('tracker:order_detail', pk=order.id)
+
+
+@login_required
 def analytics(request: HttpRequest):
     """Analytics page summarizing orders by period with four statuses only."""
     from datetime import timedelta
