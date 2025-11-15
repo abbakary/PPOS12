@@ -18,10 +18,11 @@
         {% csrf_token %}
         <input type="hidden" name="order_id" value="{{ order.id }}">
         <input type="hidden" name="action" value="update_from_extraction">
+        {% if order.customer %}<input type="hidden" name="pre_selected_customer_id" value="{{ order.customer.id }}">{% endif %}
 
         <div class="modal-body extraction-form-body">
-          <!-- Step 1: Customer Type Selection -->
-          <div class="extraction-step" id="extractionStep1" data-step="1">
+          <!-- Step 1: Customer Type Selection (Only shown if customer is not pre-selected) -->
+          <div class="extraction-step" id="extractionStep1" data-step="1" {% if order.customer %}style="display:none;"{% endif %}>
             <h6 class="fw-bold mb-3">
               <span class="step-badge-sm">1</span>
               <i class="fa fa-user me-2 text-primary"></i>Customer Type
