@@ -1090,26 +1090,27 @@ def overrun_reports(request: HttpRequest):
 def api_started_orders_kpis(request):
     """API endpoint to get KPI stats for started orders dashboard (for AJAX updates)."""
     try:
+        from django.db.models import Count
         user_branch = get_user_branch(request.user)
 
-        # Include all started orders for accurate KPI counts (status='in_progress' means started)
+        # Total started orders: both 'created' (just initiated) and 'in_progress' (being worked on)
         total_started = Order.objects.filter(
             branch=user_branch,
-            status='in_progress'
+            status__in=['created', 'in_progress']
         ).count()
 
+        # Orders started today: those created today
+        today = timezone.now().date()
         today_started = Order.objects.filter(
             branch=user_branch,
-            status='in_progress',
-            started_at__date=timezone.now().date()
+            created_at__date=today,
+            status__in=['created', 'in_progress']
         ).count()
 
-        # Calculate repeated vehicles today (vehicles with 2+ orders started today)
-        from django.db.models import Count
+        # Calculate repeated vehicles today (vehicles with 2+ orders created today)
         today_orders = Order.objects.filter(
             branch=user_branch,
-            status='in_progress',
-            started_at__date=timezone.now().date(),
+            created_at__date=today,
             vehicle__isnull=False
         ).values('vehicle__plate_number').annotate(order_count=Count('id')).filter(order_count__gte=2)
         repeated_vehicles_today = today_orders.count()
