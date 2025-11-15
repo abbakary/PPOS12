@@ -3977,6 +3977,146 @@
     });
     
     refresh();
+
+    // Initialize invoice upload modal
+    const orderUploadBtn = document.getElementById('orderUploadInvoiceBtn');
+    const orderModalEl = document.getElementById('orderUploadInvoiceModal');
+    const orderModal = orderModalEl ? new bootstrap.Modal(orderModalEl) : null;
+
+    if (orderUploadBtn) {
+      orderUploadBtn.addEventListener('click', function() {
+        if (orderModal) orderModal.show();
+      });
+    }
+
+    // Invoice upload form handling
+    const orderInvoiceForm = document.getElementById('orderManualInvoiceForm');
+    if (orderInvoiceForm) {
+      // Customer type change handler
+      const customerTypeEl = document.getElementById('orderInvoiceCustomerType');
+      const personalSubtypeWrapper = document.getElementById('orderPersonalSubtypeWrapper');
+      const organizationDetailsWrapper = document.getElementById('orderOrganizationDetailsWrapper');
+
+      if (customerTypeEl) {
+        function updateCustomerTypeFields() {
+          const selectedType = customerTypeEl.value;
+
+          if (selectedType === 'personal') {
+            if (personalSubtypeWrapper) personalSubtypeWrapper.style.display = 'block';
+            if (organizationDetailsWrapper) organizationDetailsWrapper.style.display = 'none';
+          } else if (selectedType && ['company', 'ngo', 'government'].includes(selectedType)) {
+            if (personalSubtypeWrapper) personalSubtypeWrapper.style.display = 'none';
+            if (organizationDetailsWrapper) organizationDetailsWrapper.style.display = 'block';
+          } else {
+            if (personalSubtypeWrapper) personalSubtypeWrapper.style.display = 'none';
+            if (organizationDetailsWrapper) organizationDetailsWrapper.style.display = 'none';
+          }
+        }
+
+        customerTypeEl.addEventListener('change', updateCustomerTypeFields);
+        updateCustomerTypeFields();
+      }
+
+      // Upload handling
+      const fileInput = document.getElementById('orderInvoiceFile');
+      const uploadBtn = document.getElementById('orderUploadBtn');
+      const uploadError = document.getElementById('orderUploadError');
+      const extractionSuccess = document.getElementById('orderExtractionSuccess');
+      const uploadProgress = document.getElementById('orderUploadProgress');
+      const uploadProgressBar = document.getElementById('orderUploadProgressBar');
+
+      if (uploadBtn && fileInput) {
+        uploadBtn.addEventListener('click', async function() {
+          if (!fileInput.files || !fileInput.files[0]) {
+            if (uploadError) {
+              uploadError.style.display = 'block';
+              uploadError.innerHTML = '<i class="fa fa-warning me-2"></i>Please select a PDF file to upload.';
+            }
+            return;
+          }
+
+          const file = fileInput.files[0];
+          if (!file.name.toLowerCase().endsWith('.pdf')) {
+            if (uploadError) {
+              uploadError.style.display = 'block';
+              uploadError.innerHTML = '<i class="fa fa-warning me-2"></i>Please upload a PDF file.';
+            }
+            return;
+          }
+
+          const fd = new FormData();
+          fd.append('file', file);
+
+          if (uploadError) uploadError.style.display = 'none';
+          if (extractionSuccess) extractionSuccess.style.display = 'none';
+          if (uploadProgress) uploadProgress.style.display = 'block';
+          if (uploadProgressBar) uploadProgressBar.style.width = '25%';
+
+          try {
+            const response = await fetch('{% url "tracker:api_extract_invoice_preview" %}', {
+              method: 'POST',
+              body: fd,
+              headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''}
+            });
+
+            const data = await response.json();
+
+            if (uploadProgressBar) uploadProgressBar.style.width = '100%';
+
+            if (data.success) {
+              if (extractionSuccess) extractionSuccess.style.display = 'block';
+
+              // Populate preview
+              document.getElementById('orderPreviewCustomerName').textContent = data.header?.customer_name || '-';
+              document.getElementById('orderPreviewCustomerPhone').textContent = data.header?.phone || '-';
+              document.getElementById('orderPreviewCustomerEmail').textContent = data.header?.email || '-';
+              document.getElementById('orderPreviewCustomerAddress').textContent = data.header?.address || '-';
+              document.getElementById('orderPreviewInvoiceNo').textContent = data.header?.invoice_no || '-';
+              document.getElementById('orderPreviewInvoiceDate').textContent = data.header?.date || '-';
+              document.getElementById('orderPreviewSubtotal').textContent = (data.header?.subtotal || 0).toFixed(2);
+              document.getElementById('orderPreviewTax').textContent = (data.header?.tax || 0).toFixed(2);
+              document.getElementById('orderPreviewTotal').textContent = (data.header?.total || 0).toFixed(2);
+
+              if (document.getElementById('orderUploadedInvoicePreview')) {
+                document.getElementById('orderUploadedInvoicePreview').style.display = 'block';
+              }
+
+              // Populate form fields
+              if (document.getElementById('orderManualCustomerName') && data.header?.customer_name) {
+                document.getElementById('orderManualCustomerName').value = data.header.customer_name;
+              }
+              if (document.getElementById('orderManualCustomerPhone') && data.header?.phone) {
+                document.getElementById('orderManualCustomerPhone').value = data.header.phone;
+              }
+            } else {
+              if (uploadError) {
+                uploadError.style.display = 'block';
+                uploadError.innerHTML = '<i class="fa fa-exclamation-circle me-2"></i>' + (data.message || 'Failed to extract data');
+              }
+            }
+          } catch (error) {
+            console.error('Upload error:', error);
+            if (uploadError) {
+              uploadError.style.display = 'block';
+              uploadError.innerHTML = '<i class="fa fa-exclamation-circle me-2"></i>Error uploading file';
+            }
+          } finally {
+            if (uploadProgress) uploadProgress.style.display = 'none';
+          }
+        });
+      }
+
+      // Form submission
+      orderInvoiceForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const submitBtn = orderInvoiceForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i>Creating...';
+        }
+        this.submit();
+      });
+    }
   });
 
 })();
