@@ -27,10 +27,13 @@ class AutoProgressOrdersMiddleware(MiddlewareMixin):
             now = timezone.now()
             # Bulk-progress eligible orders
             ten_min_ago = now - timedelta(minutes=10)
+            # Auto-progress orders from 'created' to 'in_progress' after 10 minutes
+            # Set started_at to the created_at timestamp (when order was initiated)
             updated = Order.objects.filter(status='created', created_at__lte=ten_min_ago)
             if updated.exists():
-                # Set same started_at timestamp for batch; acceptable for SLA tracking
-                updated.update(status='in_progress', started_at=now)
+                # Use F() to set started_at from created_at, preserving the actual start time
+                from django.db.models import F
+                updated.update(status='in_progress', started_at=F('created_at'))
         except Exception:
             # Do not block the request pipeline on errors
             pass
