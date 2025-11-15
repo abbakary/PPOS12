@@ -11,6 +11,7 @@ class ExtractionFormModal {
     this.totalSteps = 3;
     this.formData = {};
     this.modal = null;
+    this.isCustomerPreSelected = false;
     this.init();
   }
 
@@ -20,6 +21,10 @@ class ExtractionFormModal {
       console.error('Extraction form modal not found');
       return;
     }
+
+    // Check if customer is pre-selected
+    const preSelectedCustomerId = modalElement.querySelector('input[name="pre_selected_customer_id"]')?.value;
+    this.isCustomerPreSelected = !!preSelectedCustomerId;
 
     this.modal = new bootstrap.Modal(modalElement, {
       backdrop: 'static',
