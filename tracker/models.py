@@ -262,6 +262,39 @@ class Order(models.Model):
         super().save(*args, **kwargs)
 
 
+class OrderComponent(models.Model):
+    """
+    Tracks multiple order types/components for a single order.
+    Allows orders to have both service and sales components added at different times.
+    """
+    TYPE_CHOICES = [("service", "Service"), ("sales", "Sales")]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='components')
+    type = models.CharField(max_length=16, choices=TYPE_CHOICES)
+    added_at = models.DateTimeField(default=timezone.now)
+    added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_components_added')
+    reason = models.TextField(blank=True, null=True, help_text="Reason for adding this component")
+
+    # Optional reference to linked invoice
+    invoice = models.ForeignKey('Invoice', on_delete=models.SET_NULL, null=True, blank=True, related_name='order_component')
+
+    # Signature status for this component
+    signed_at = models.DateTimeField(blank=True, null=True)
+    signed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_components_signed')
+    signature_file = models.ImageField(upload_to='order_component_signatures/', blank=True, null=True)
+
+    class Meta:
+        ordering = ['added_at']
+        unique_together = [['order', 'type']]  # One component per type per order
+        indexes = [
+            models.Index(fields=['order', 'type'], name='idx_order_component_type'),
+            models.Index(fields=['added_at'], name='idx_order_component_added'),
+        ]
+
+    def __str__(self):
+        return f"{self.order.order_number} - {self.get_type_display()}"
+
+
 class OrderAttachment(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='attachments')
     file = models.FileField(upload_to='order_attachments/')
