@@ -901,7 +901,7 @@ def api_create_order_from_modal(request):
                 branch=user_branch,
                 type=order_type,
                 status='created',
-                started_at=timezone.now(),
+                started_at=None,  # Will be set to created_at when auto-progressed after 10 minutes
                 description=description or f"Order for {customer.full_name}",
                 priority=priority if priority in ['low', 'medium', 'high', 'urgent'] else 'medium',
                 estimated_duration=est_duration,
