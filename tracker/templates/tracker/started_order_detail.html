@@ -111,7 +111,18 @@
             </div>
           </div>
 
-          <!-- Combined Invoice Modal (Upload & Editable Form) -->
+          <!-- Invoice Upload Modal (Shared/Reusable) -->
+          {% include 'tracker/partials/invoice_upload_modal.html' %}
+
+          <!-- Legacy Script Support - Keep for backward compatibility -->
+          <script>
+          document.addEventListener('DOMContentLoaded', function(){
+            // Legacy script initialization
+          });
+          </script>
+
+          <!-- Removed: Inline modal - Now using shared partial -->
+          {% comment %}
           <div class="modal fade" id="uploadInvoiceModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl">
               <div class="modal-content">
