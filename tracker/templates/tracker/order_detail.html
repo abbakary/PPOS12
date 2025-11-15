@@ -316,65 +316,84 @@
       <!-- Time Tracking -->
       <div class="card shadow-sm mb-4 time-tracking-card">
         <div class="card-header bg-light">
-          <h6 class="mb-0"><i class="fa fa-hourglass-half me-2"></i>Time Tracking</h6>
+          <h6 class="mb-0"><i class="fa fa-clock me-2"></i>Time Summary</h6>
         </div>
         <div class="card-body">
           <div class="time-tracking-overview">
-            <div class="time-tracking-stat">
-              <span class="time-tracking-label">Estimated</span>
-              <span class="time-tracking-value" id="timeEstimateValue">
-                {% if order.estimated_duration %}
-                  {{ order.estimated_duration }} mins
-                {% else %}
-                  No estimate
-                {% endif %}
-              </span>
-            </div>
-            <div class="time-tracking-stat">
-              <span class="time-tracking-label">Elapsed</span>
-              <span class="time-tracking-value" id="timeElapsedValue">--</span>
-            </div>
+            {% if order.completed_at %}
             <div class="time-tracking-stat">
               <span class="time-tracking-label">Actual Time</span>
               <span class="time-tracking-value" id="timeActualValue">
-                {% with actual_mins=order|actual_time_minutes %}
-                  {% if actual_mins %}
-                    {{ actual_mins|format_minutes }}
+                {% with total_seconds=order.completed_at|timesince:order.created_at %}
+                  {% if order.completed_at and order.created_at %}
+                    {% with mins=(order.completed_at.timestamp|add:"-"|add:order.created_at.timestamp)|abs|floordiv:"60" %}
+                      {% if mins < 60 %}
+                        {{ mins }} mins
+                      {% elif mins < 1440 %}
+                        {{ mins|divisibleby:"60"|yesno:"h, " }}{{ mins|modulo:"60" }} mins
+                      {% else %}
+                        {{ mins|divisibleby:"1440" }}d {{ mins|modulo:"1440"|divisibleby:"60" }}h
+                      {% endif %}
+                    {% endwith %}
                   {% else %}
-                    Pending
+                    Calculating...
                   {% endif %}
                 {% endwith %}
               </span>
             </div>
-          </div>
-          <div class="progress time-progress-bar">
-            <div class="progress-bar bg-primary" id="orderTimeProgressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
-          </div>
-          <div class="d-flex justify-content-between text-muted small mt-3 mb-3">
-            <span id="timeStartLabel">
-              {% if order.started_at %}
-                Started {{ order.started_at|localtime|date:"M j, Y g:i a" }}
-              {% else %}
-                Awaiting start
-              {% endif %}
-            </span>
-            <span id="timeRemainingValue">Remaining: --</span>
+            {% else %}
+            <div class="time-tracking-stat">
+              <span class="time-tracking-label">Elapsed Time</span>
+              <span class="time-tracking-value" id="timeElapsedValue">--</span>
+            </div>
+            {% endif %}
+
+            {% if order.estimated_duration and order.status != 'completed' %}
+            <div class="time-tracking-stat">
+              <span class="time-tracking-label">Estimated Duration</span>
+              <span class="time-tracking-value">{{ order.estimated_duration }} mins</span>
+            </div>
+            {% endif %}
           </div>
 
-          <!-- Completion Timestamp Section (shown when order is completed) -->
-          {% if order.completed_at %}
-          <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded">
-            <div class="d-flex align-items-center">
-              <i class="fa fa-check-circle text-success me-3 fa-lg"></i>
-              <div class="flex-grow-1">
-                <small class="text-muted d-block">Completed</small>
-                <strong class="text-dark">{{ order.completed_at|localtime|date:"M j, Y g:i a" }}</strong>
+          <!-- Timeline Section -->
+          <div class="mt-4">
+            <div class="timeline-compact">
+              <div class="timeline-compact-item">
+                <div class="timeline-compact-marker">
+                  <i class="fa fa-plus-circle text-primary"></i>
+                </div>
+                <div class="timeline-compact-content">
+                  <small class="text-muted">Created</small>
+                  <div class="fw-medium">{{ order.created_at|localtime|date:"M j, Y g:i a" }}</div>
+                </div>
               </div>
+
+              {% if order.started_at %}
+              <div class="timeline-compact-item">
+                <div class="timeline-compact-marker">
+                  <i class="fa fa-play-circle text-warning"></i>
+                </div>
+                <div class="timeline-compact-content">
+                  <small class="text-muted">Started</small>
+                  <div class="fw-medium">{{ order.started_at|localtime|date:"M j, Y g:i a" }}</div>
+                </div>
+              </div>
+              {% endif %}
+
+              {% if order.completed_at %}
+              <div class="timeline-compact-item">
+                <div class="timeline-compact-marker">
+                  <i class="fa fa-check-circle text-success"></i>
+                </div>
+                <div class="timeline-compact-content">
+                  <small class="text-muted">Completed</small>
+                  <div class="fw-medium">{{ order.completed_at|localtime|date:"M j, Y g:i a" }}</div>
+                </div>
+              </div>
+              {% endif %}
             </div>
           </div>
-          {% endif %}
-
-          <div class="time-progress-status small mt-3" id="timeStatusMessage"></div>
         </div>
       </div>
 
