@@ -127,7 +127,8 @@
                   <input type="hidden" name="action" value="create_invoice_manual">
                   <input type="hidden" name="selected_order_id" value="{{ order.id }}">
                   {% if vehicle and vehicle.plate_number %}<input type="hidden" name="plate" value="{{ vehicle.plate_number }}">{% endif %}
-                  
+                  {% if order.customer %}<input type="hidden" name="pre_selected_customer_id" value="{{ order.customer.id }}">{% endif %}
+
                   <!-- Hidden fields for additional details -->
                   <input type="hidden" name="payment_method" id="hiddenPaymentMethod" value="">
                   <input type="hidden" name="delivery_terms" id="hiddenDeliveryTerms" value="">
