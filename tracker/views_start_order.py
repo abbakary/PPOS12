@@ -359,6 +359,16 @@ def started_order_detail(request, order_id):
         if action == 'create_invoice_manual':
             # Handle manual invoice creation from started order detail
             try:
+                # Get customer data from form
+                customer_name = request.POST.get('customer_name', '').strip()
+                customer_phone = request.POST.get('customer_phone', '').strip()
+                customer_email = request.POST.get('customer_email', '').strip()
+                customer_address = request.POST.get('customer_address', '').strip()
+                customer_type = request.POST.get('customer_type', 'personal').strip()
+                customer_personal_subtype = request.POST.get('customer_personal_subtype', '').strip() if customer_type == 'personal' else None
+                customer_organization_name = request.POST.get('customer_organization_name', '').strip() if customer_type != 'personal' else None
+                customer_tax_number = request.POST.get('customer_tax_number', '').strip() if customer_type != 'personal' else None
+
                 invoice_number = request.POST.get('invoice_number', '').strip() or f"MANUAL-{timezone.now().strftime('%Y%m%d%H%M%S')}"
                 invoice_date_str = request.POST.get('invoice_date', '')
                 subtotal = request.POST.get('subtotal', '0')
@@ -372,11 +382,29 @@ def started_order_detail(request, order_id):
                 except Exception:
                     invoice_date = timezone.localdate()
 
+                # Update or create customer with submitted data
+                from .services import CustomerService
+                customer = CustomerService.create_or_get_customer(
+                    branch=user_branch,
+                    name=customer_name,
+                    phone=customer_phone,
+                    email=customer_email or None,
+                    address=customer_address or None,
+                    customer_type=customer_type,
+                    personal_subtype=customer_personal_subtype,
+                    organization_name=customer_organization_name,
+                    tax_number=customer_tax_number
+                )
+
+                # Update order's customer reference
+                order.customer = customer
+                order.save(update_fields=['customer'])
+
                 # Create invoice
                 inv = Invoice()
                 inv.branch = user_branch
                 inv.order = order
-                inv.customer = order.customer
+                inv.customer = customer
                 inv.reference = invoice_number
                 inv.invoice_date = invoice_date
                 inv.notes = notes
